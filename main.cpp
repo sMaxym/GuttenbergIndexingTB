@@ -13,6 +13,11 @@
 
 namespace fs = std::filesystem;
 
+template<typename K, typename V>
+void print_map_ordered(const std::vector<std::pair<K, V>>& order,
+                       tbb::concurrent_unordered_map<K, V>& output_map,
+                       const std::string& output_dir);
+
 int main(int argc, const char* argv[]) {
     const size_t tokens_n = 400;
     const size_t size_limit = 12'000'000;
@@ -111,8 +116,6 @@ int main(int argc, const char* argv[]) {
     execution_time_mcs = to_us(get_current_time_fenced() - start_time_stamp);
     std::cout << "Execution time: " << static_cast<double>(execution_time_mcs) / 1'000'000 << "s" << std::endl;
 
-//    std::map<std::string, size_t> alphabet_ordered(total_indexed.begin(), total_indexed.end());
-
     std::vector<std::pair<std::string, size_t>> key_val_pairs;
     for (const auto& [key, value]: total_indexed)
         key_val_pairs.emplace_back(key, value);
@@ -120,22 +123,23 @@ int main(int argc, const char* argv[]) {
     std::sort(key_val_pairs.begin(), key_val_pairs.end(), [](const auto& p1, const auto& p2) {
         return p1.first.compare(p2.first) < 0;
     });
-
-    std::ofstream output(config.out_file1, std::fstream::out);
-    for (const auto& [key, value]: key_val_pairs)
-        output << std::setw(20) << std::left << key <<
-               std::setw(20) << std::left << total_indexed[key] << std::endl;
-    output.close();
-
+    print_map_ordered(key_val_pairs, total_indexed, config.out_file1);
     std::sort(key_val_pairs.begin(), key_val_pairs.end(), [](const auto& p1, const auto& p2) {
       return p1.second > p2.second;
     });
-
-    output = std::ofstream(config.out_file2, std::fstream::out);
-    for (const auto& [key, value]: key_val_pairs)
-        output << std::setw(20) << std::left << key <<
-               std::setw(20) << std::left << total_indexed[key] << std::endl;
-    output.close();
+    print_map_ordered(key_val_pairs, total_indexed, config.out_file2);
 
     return 0;
+}
+
+template<typename K, typename V>
+void print_map_ordered(const std::vector<std::pair<K, V>>& order,
+                       tbb::concurrent_unordered_map<K, V>& output_map,
+                       const std::string& output_dir)
+{
+    std::ofstream output(output_dir, std::fstream::out);
+    for (const auto& [key, value]: order)
+        output << std::setw(20) << std::left << key <<
+               std::setw(20) << std::left << output_map[key] << std::endl;
+    output.close();
 }
