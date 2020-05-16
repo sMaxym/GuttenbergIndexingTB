@@ -1,0 +1,6 @@
+{
+	"inputFile": "data/raw_data_/0",
+	"outputA": "out_file1.txt",
+	"outputB": "out_file2.txt",
+	"threads": 4
+}

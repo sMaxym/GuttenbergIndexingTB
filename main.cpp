@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 #include <filesystem>
+#include <fstream>
+#include <algorithm>
 
 #include <tbb/tbb.h>
 
@@ -11,10 +13,24 @@
 
 namespace fs = std::filesystem;
 
-int main() {
+int main(int argc, const char* argv[]) {
     const size_t tokens_n = 400;
-    const size_t size_limit = 10'000'000;
-    const std::string dir_path = "data";
+    const size_t size_limit = 12'000'000;
+
+    configuration_t config;
+    size_t execution_time_mcs;
+    std::string dir_path;
+
+    try
+    {
+        config = init(argc, argv);
+    } catch (std::runtime_error &e)
+    {
+        std::cout << "Runtime exception: " << e.what() << std::endl;
+        return 1;
+    }
+
+    dir_path = config.in_file;
 
     boost::locale::generator gen;
     std::locale loc = gen("en_US.UTF-8");
@@ -40,7 +56,7 @@ int main() {
                                            }
                                            cur_dir_path = dir_iter->path();
                                            dir_iter++;
-                                       } while (fs::is_directory(cur_dir_path) || fs::file_size(cur_dir_path) > size_limit);
+                                       } while (fs::is_directory(cur_dir_path));
                                        return cur_dir_path;
                                    }) &
                                    tbb::make_filter<std::string, std::string>(
@@ -92,10 +108,34 @@ int main() {
                                            )
                            );
 
-    std::cout << static_cast<double>(to_us(get_current_time_fenced() - start_time_stamp)) / 1'000'000 << std::endl;
+    execution_time_mcs = to_us(get_current_time_fenced() - start_time_stamp);
+    std::cout << "Execution time: " << static_cast<double>(execution_time_mcs) / 1'000'000 << "s" << std::endl;
 
+//    std::map<std::string, size_t> alphabet_ordered(total_indexed.begin(), total_indexed.end());
+
+    std::vector<std::pair<std::string, size_t>> key_val_pairs;
     for (const auto& [key, value]: total_indexed)
-        std::cout << key << " " << value << std::endl;
+        key_val_pairs.emplace_back(key, value);
+
+    std::sort(key_val_pairs.begin(), key_val_pairs.end(), [](const auto& p1, const auto& p2) {
+        return p1.first.compare(p2.first) < 0;
+    });
+
+    std::ofstream output(config.out_file1, std::fstream::out);
+    for (const auto& [key, value]: key_val_pairs)
+        output << std::setw(20) << std::left << key <<
+               std::setw(20) << std::left << total_indexed[key] << std::endl;
+    output.close();
+
+    std::sort(key_val_pairs.begin(), key_val_pairs.end(), [](const auto& p1, const auto& p2) {
+      return p1.second > p2.second;
+    });
+
+    output = std::ofstream(config.out_file2, std::fstream::out);
+    for (const auto& [key, value]: key_val_pairs)
+        output << std::setw(20) << std::left << key <<
+               std::setw(20) << std::left << total_indexed[key] << std::endl;
+    output.close();
 
     return 0;
 }
